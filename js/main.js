@@ -60,8 +60,8 @@ document.addEventListener("DOMContentLoaded", () => {
       playButton.addEventListener("click", async () => {
         if (assetEl.paused) {
           try {
+             playButton.setAttribute("visible", "false");
             await assetEl.play();
-            playButton.setAttribute("visible", "false");
           } catch (err) {
             console.warn("Autoplay error:", err);
           }

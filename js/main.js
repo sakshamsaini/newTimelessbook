@@ -81,14 +81,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Marker logic ---
     marker.addEventListener("targetFound", () => {
-      if (media.type === "video") {
-        mediaPlane.object3D.visible = true;
-        playButton.object3D.visible = true;
-        mediaPlane.setAttribute("material", `src: #media-${index}; transparent: true; opacity: 1`);
-      } else if (media.type === "audio") {
-        assetEl.play();
-      }
-    });
+  if (media.type === "video") {
+    mediaPlane.object3D.visible = true;
+    mediaPlane.setAttribute("material", `src: #media-${index}; transparent: true; opacity: 1`);
+
+    // --- FIX: check if video is already playing ---
+    if (assetEl.paused) {
+      playButton.object3D.visible = true;
+    } else {
+      playButton.object3D.visible = false;
+    }
+  } else if (media.type === "audio") {
+    assetEl.play();
+  }
+});
 
     marker.addEventListener("targetLost", () => {
       // (Still used as backup in case heartbeat missed a frame)

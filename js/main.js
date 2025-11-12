@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const scene = document.querySelector("a-scene");
-  const mindarSystem = scene.systems["mindar-image"]; // MindAR system reference
+  const mindarSystem = scene.systems["mindar-image"];
 
   Object.keys(MEDIA_MAP).forEach((key) => {
     const media = MEDIA_MAP[key];
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
       mediaPlane.setAttribute("material", `src: #media-${index}; transparent: true; opacity: 1`);
       mediaPlane.setAttribute("width", "1");
       mediaPlane.setAttribute("height", "0.6");
-      mediaPlane.object3D.visible = false;
+      mediaPlane.setAttribute("visible", "false");
       marker.appendChild(mediaPlane);
 
       // --- Play button overlay ---
@@ -53,14 +53,14 @@ document.addEventListener("DOMContentLoaded", () => {
       playButton.setAttribute("class", "clickable");
       playButton.setAttribute("position", "0 0 0.01");
       playButton.setAttribute("scale", "0.2 0.2 0.2");
-      playButton.object3D.visible = false;
+      playButton.setAttribute("visible", "false");
       marker.appendChild(playButton);
 
       // --- Click handler ---
       playButton.addEventListener("click", async () => {
         if (assetEl.paused) {
           try {
-             playButton.setAttribute("visible", "false");
+            playButton.setAttribute("visible", "false");
             await assetEl.play();
           } catch (err) {
             console.warn("Autoplay error:", err);
@@ -68,10 +68,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Sync button with actual play state
+      // --- Sync button with actual play state ---
       assetEl.addEventListener("playing", () => {
         playButton.setAttribute("visible", "false");
       });
+
       assetEl.addEventListener("pause", () => {
         if (mediaPlane.object3D.visible) {
           playButton.setAttribute("visible", "true");
@@ -81,44 +82,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Marker logic ---
     marker.addEventListener("targetFound", () => {
-  if (media.type === "video") {
-    mediaPlane.object3D.visible = true;
-    mediaPlane.setAttribute("material", `src: #media-${index}; transparent: true; opacity: 1`);
+      if (media.type === "video") {
+        mediaPlane.setAttribute("visible", "true");
+        mediaPlane.object3D.visible = true;
+        mediaPlane.setAttribute("material", `src: #media-${index}; transparent: true; opacity: 1`);
 
-    // --- FIX: check if video is already playing ---
-    if (assetEl.paused) {
-      playButton.object3D.visible = true;
-    } else {
-      playButton.object3D.visible = false;
-    }
-  } else if (media.type === "audio") {
-    assetEl.play();
-  }
-});
+        // FIX: proper visibility + playback check
+        if (assetEl.paused || assetEl.ended) {
+          playButton.setAttribute("visible", "true");
+        } else {
+          playButton.setAttribute("visible", "false");
+        }
+      } else if (media.type === "audio") {
+        assetEl.play();
+      }
+    });
 
     marker.addEventListener("targetLost", () => {
-      // (Still used as backup in case heartbeat missed a frame)
       hideMedia();
     });
 
-    // --- Instant hide heartbeat check ---
+    // --- Hide instantly ---
     const hideMedia = () => {
-      assetEl.pause();
-      assetEl.currentTime = 0;
+      try {
+        assetEl.pause();
+        assetEl.currentTime = 0;
+      } catch (e) {
+        console.warn("pause/reset error:", e);
+      }
+
       if (media.type === "video") {
         mediaPlane.object3D.visible = false;
+        mediaPlane.setAttribute("visible", "false");
+
         playButton.object3D.visible = false;
+        playButton.setAttribute("visible", "false");
+
+        // clear material to remove ghost frame
         mediaPlane.removeAttribute("material");
         mediaPlane.setAttribute("material", "transparent: true; opacity: 0;");
       }
     };
 
-    // Check each frame if marker is actually visible
+    // --- Continuous check per frame ---
     scene.addEventListener("renderstart", () => {
       scene.addEventListener("tick", () => {
         const target = mindarSystem?.controller?.imageTrackers?.[index];
         const isVisible = target?.visible;
-        if (!isVisible && mediaPlane?.object3D.visible) {
+
+        // FIX: use correct visibility check
+        const currentlyVisible =
+          mediaPlane?.object3D.visible || mediaPlane?.getAttribute("visible") === "true";
+
+        if (!isVisible && currentlyVisible) {
           hideMedia();
         }
       });
